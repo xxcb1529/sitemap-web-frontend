@@ -137,9 +137,10 @@
 
       <!-- 日志弹窗 -->
       <el-dialog v-model="showLog" title="任务日志" width="600px">
-        <el-scrollbar style="max-height: 400px">
+        <el-scrollbar style="max-height: 400px" v-if="logLines.length > 0">
           <div v-for="line in logLines" :key="line">{{ line }}</div>
         </el-scrollbar>
+        <div v-else>暂无日志</div>
       </el-dialog>
     </div>
   </NuxtLayout>
