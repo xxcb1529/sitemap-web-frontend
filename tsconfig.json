@@ -1,0 +1,12 @@
+{
+  // https://nuxt.com/docs/guide/concepts/typescript
+  "extends": "./.nuxt/tsconfig.json"
+  // "includes": ["types/*.d.ts"],
+  // "compilerOptions": {
+  //   "types": ["pinia-plugin-persistedstate"],
+  //   "paths": {
+  //     "~/*": ["./*"],
+  //     "@/*": ["./*"]
+  //   }
+  // }
+}
