@@ -67,11 +67,11 @@
               ? 'exception'
               : currentStatus === 'success'
               ? 'success'
-              : 'active'
+              : undefined
           "
         />
         <div v-if="currentStatus === 'success'">
-          <el-button type="success" @click="downloadResult"
+          <el-button type="success" @click="() => downloadResult()"
             >下载sitemap.xml</el-button
           >
         </div>
@@ -84,7 +84,20 @@
       </div>
 
       <!-- 历史任务列表 -->
-      <el-table :data="taskList" style="margin-top: 30px">
+      <div
+        style="
+          margin-top: 30px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <h3>历史任务列表</h3>
+        <el-button @click="fetchTaskList" :loading="refreshing"
+          >刷新列表</el-button
+        >
+      </div>
+      <el-table :data="taskList" style="margin-top: 10px">
         <el-table-column prop="id" label="任务ID" width="220" />
         <el-table-column prop="type" label="类型" width="80" />
         <el-table-column prop="status" label="状态" width="100" />
@@ -97,7 +110,7 @@
                   ? 'exception'
                   : row.status === 'success'
                   ? 'success'
-                  : 'active'
+                  : undefined
               "
               :stroke-width="10"
             />
@@ -154,6 +167,7 @@ const sitemapXml = ref("");
 
 // 历史任务
 const taskList = ref<any[]>([]);
+const refreshing = ref(false);
 
 // 日志弹窗
 const showLog = ref(false);
@@ -174,13 +188,15 @@ async function onSubmit() {
     else if (mode.value === "manual") params = manualForm.value;
     else if (mode.value === "local") params = localForm.value;
 
-    const { taskId } = await $api("/submit-sitemap-task", {
+    const response = (await $api("/task/submit", {
       method: "POST",
       body: { type: mode.value, params },
-    });
-    currentTaskId.value = taskId;
-    pollTaskStatus(taskId);
+    })) as { taskId: string };
+    currentTaskId.value = response.taskId;
+    pollTaskStatus(response.taskId);
     ElMessage.success("任务已提交！");
+    // 提交任务后刷新列表
+    await fetchTaskList();
   } catch (e: any) {
     ElMessage.error("提交失败");
   } finally {
@@ -191,12 +207,18 @@ async function onSubmit() {
 function pollTaskStatus(taskId: string) {
   if (pollTimer.value) clearInterval(pollTimer.value);
   pollTimer.value = setInterval(async () => {
-    const res = await $api("/sitemap-task-status", { params: { taskId } });
+    const res = (await $api("/task/status", { params: { taskId } })) as {
+      progress: number;
+      status: string;
+      error?: string;
+    };
     currentProgress.value = res.progress;
     currentStatus.value = res.status;
-    currentError.value = res.error;
+    currentError.value = res.error || "";
     if (res.status === "success" || res.status === "fail") {
       clearInterval(pollTimer.value);
+      // 任务完成后刷新任务列表
+      await fetchTaskList();
       if (res.status === "success") {
         // 可自动下载或展示
         downloadResult(taskId);
@@ -207,7 +229,9 @@ function pollTaskStatus(taskId: string) {
 
 async function downloadResult(taskId?: string) {
   const id = taskId || currentTaskId.value;
-  const xml = await $api("/sitemap-task-result", { params: { taskId: id } });
+  const xml = (await $api("/task/result", {
+    params: { taskId: id },
+  })) as string;
   // 触发浏览器下载
   const blob = new Blob([xml], { type: "application/xml" });
   const url = URL.createObjectURL(blob);
@@ -224,13 +248,36 @@ async function viewTask(row: any) {
 }
 
 async function viewLog(taskId: string) {
-  const res = await $api("/sitemap-task-log", { params: { taskId } });
-  logLines.value = res.log || [];
-  showLog.value = true;
+  try {
+    const res = (await $api("/task/log", { params: { taskId } })) as {
+      log: string[];
+      taskId: string;
+    };
+    console.log("日志响应:", res); // 调试信息
+    logLines.value = res.log || [];
+    showLog.value = true;
+  } catch (error) {
+    console.error("获取日志失败:", error);
+    ElMessage.error("获取日志失败");
+    logLines.value = [];
+    showLog.value = true;
+  }
 }
 
 async function fetchTaskList() {
-  taskList.value = await $api("/sitemap-task-list");
+  refreshing.value = true;
+  try {
+    const response = (await $api("/task/list")) as {
+      tasks: any[];
+      total: number;
+    };
+    taskList.value = response.tasks || [];
+  } catch (error) {
+    console.error("获取任务列表失败:", error);
+    ElMessage.error("获取任务列表失败");
+  } finally {
+    refreshing.value = false;
+  }
 }
 
 onMounted(() => {
