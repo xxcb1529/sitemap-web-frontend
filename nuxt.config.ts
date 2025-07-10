@@ -66,7 +66,10 @@ export default defineNuxtConfig({
       },
     },
     ssr: {
-      noExternal: ["moment", /element-plus/],
+      noExternal: ["moment", /element-plus/, "lodash-es"],
+    },
+    optimizeDeps: {
+      exclude: ["@vue/devtools-api"],
     },
   },
 });

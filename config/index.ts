@@ -1,5 +1,7 @@
 import pkg from "../package.json";
 import { useLocalizedRoutes } from "~/composables/useLocalizedRoutes";
+import { useGlobalT } from "~/composables/useGlobalI18n";
+const t = useGlobalT();
 // 顶部菜单
 export function getRouteLinks(
   t: (key: string) => string,
